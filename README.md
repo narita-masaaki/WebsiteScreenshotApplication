@@ -52,18 +52,18 @@ Users can input a URL, and upon clicking the submit button, the application capt
 
 ## Running with Docker
 1. Build the Docker image:
-    ```
-    bash
+   
+    ```bash
     docker build -t screenshot_app .
     ```
    
-1. Run the Docker container:
-    ```
-    bash
+2. Run the Docker container:
+
+    ```bash
     docker run -p 8080:8080 screenshot_app
     ```
   
-1. Access the application:
+3. Access the application:
 
     Open your browser and go to http://localhost:8080.
 

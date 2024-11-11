@@ -3,7 +3,7 @@ FROM python:3.10-slim
 
 # 必要なツールをインストール
 RUN apt-get update && \
-    apt-get install -y wget gnupg unzip && \
+    apt-get install -y wget gnupg unzip fonts-ipafont-gothic && \
     # Google Chrome の最新バージョンをダウンロードしてインストール
     wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
     apt-get install -y ./google-chrome-stable_current_amd64.deb && \

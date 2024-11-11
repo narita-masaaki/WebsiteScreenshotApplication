@@ -94,13 +94,12 @@ Docker Issues: Ensure that you are mapping port 8080 correctly and that Docker h
 
 ## Deployment to Google Cloud Cloud Run
 
-### Creating an Artifact Registry repository
+1. Creating an Artifact Registry repository
 
     ```bash
     python3 -m venv venv
     source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
     ```
-
 
     ```bash
     gcloud artifacts repositories create web-screen-shot \
@@ -108,25 +107,26 @@ Docker Issues: Ensure that you are mapping port 8080 correctly and that Docker h
         --location=asia-northeast1
     ```
 
-### Building a Docker image
+2. Building a Docker image
 
     ```bash
     docker build -t asia-northeast1-docker.pkg.dev/[project-id]/web-screen-shot/my-image:latest .
     ```
 
-### Local testing.
+3. Local testing.
 
     ```bash
     docker run -p 8080:8080 asia-northeast1-docker.pkg.dev/[project-id]/web-screen-shot/my-image:latest
     ```
 
-### Push to Artifact Registry
+4. Push to Artifact Registry
 
     ```bash
     docker push asia-northeast1-docker.pkg.dev/[project-id]/web-screen-shot/my-image:latest
     ```
 
-### Cloud Run Deploy
+5. Cloud Run Deploy
+
     ```bash
     gcloud run deploy my-service \
         --memory=1024Mi \
@@ -136,10 +136,10 @@ Docker Issues: Ensure that you are mapping port 8080 correctly and that Docker h
         --allow-unauthenticated
     ```
 
-### Confirmation of screenshots of web pages.
+6. Confirmation of screenshots of web pages.
 Access the public URL and send the URL of the web page to obtain a screen capture of the web page.
 
-<img src="example/ex.WebScreenshot.jpg" width="30%">
+    <img src="example/ex.WebScreenshot.jpg" width="30%">
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for more details.

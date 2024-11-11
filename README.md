@@ -139,8 +139,7 @@ Docker Issues: Ensure that you are mapping port 8080 correctly and that Docker h
 ### Confirmation of screenshots of web pages.
 Access the public URL and send the URL of the web page to obtain a screen capture of the web page.
 
-![スクリーンキャプチャ](example/ex.WebScreenshot.jpg)
-
+<img src="example/ex.WebScreenshot.jpg" width="30%">
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for more details.

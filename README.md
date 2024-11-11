@@ -97,11 +97,6 @@ Docker Issues: Ensure that you are mapping port 8080 correctly and that Docker h
 1. Creating an Artifact Registry repository
 
     ```bash
-    python3 -m venv venv
-    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
-    ```
-
-    ```bash
     gcloud artifacts repositories create web-screen-shot \
         --repository-format=docker \
         --location=asia-northeast1

@@ -92,5 +92,55 @@ Click "Take Screenshot" and wait for the screenshot to load on the page.
 "Method Not Allowed" Error: Make sure you are using the form on the main page (http://localhost:8080) to submit the URL.
 Docker Issues: Ensure that you are mapping port 8080 correctly and that Docker has access to a network.
 
+## Deployment to Google Cloud Cloud Run
+
+### Creating an Artifact Registry repository
+
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+    ```
+
+
+    ```bash
+    gcloud artifacts repositories create web-screen-shot \
+        --repository-format=docker \
+        --location=asia-northeast1
+    ```
+
+### Building a Docker image
+
+    ```bash
+    docker build -t asia-northeast1-docker.pkg.dev/[project-id]/web-screen-shot/my-image:latest .
+    ```
+
+### Local testing.
+
+    ```bash
+    docker run -p 8080:8080 asia-northeast1-docker.pkg.dev/[project-id]/web-screen-shot/my-image:latest
+    ```
+
+### Push to Artifact Registry
+
+    ```bash
+    docker push asia-northeast1-docker.pkg.dev/[project-id]/web-screen-shot/my-image:latest
+    ```
+
+### Cloud Run Deploy
+    ```bash
+    gcloud run deploy my-service \
+        --memory=1024Mi \
+        --image asia-northeast1-docker.pkg.dev/[project-id]/web-screen-shot/my-image:latest \
+        --platform managed \
+        --region asia-northeast1 \
+        --allow-unauthenticated
+    ```
+
+### Confirmation of screenshots of web pages.
+Access the public URL and send the URL of the web page to obtain a screen capture of the web page.
+
+![スクリーンキャプチャ](example/ex.WebScreenshot.jpg)
+
+
 ## License
 This project is licensed under the MIT License. See the LICENSE file for more details.

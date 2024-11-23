@@ -6,6 +6,10 @@ import base64
 
 app = Flask(__name__)
 
+# 認証情報
+VALID_ID = "XXXXXXX"
+VALID_PHRASE = "XXXXXXX"
+
 # HTMLテンプレート
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -95,11 +99,21 @@ HTML_TEMPLATE = """
                 transform: rotate(360deg);
             }
         }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
     <h1>Website Screenshot</h1>
     <form id="screenshot-form" method="post">
+        <label for="id">ID:</label>
+        <input type="text" id="id" name="id" placeholder="Enter your ID" required>
+        
+        <label for="phrase">Phrase:</label>
+        <input type="password" id="phrase" name="phrase" placeholder="Enter your Phrase" required>
+        
         <label for="url">URL to screenshot:</label>
         <input type="text" id="url" name="url" placeholder="https://example.com" required>
         
@@ -123,6 +137,8 @@ HTML_TEMPLATE = """
     </div>
     <script>
         document.getElementById('submit-button').addEventListener('click', async () => {
+            const idInput = document.getElementById('id');
+            const phraseInput = document.getElementById('phrase');
             const urlInput = document.getElementById('url');
             const windowSizeSelect = document.getElementById('window-size');
             const resultDiv = document.getElementById('result');
@@ -135,11 +151,14 @@ HTML_TEMPLATE = """
             loadingDiv.style.display = 'flex'; // ローディングアイコンを表示
             submitButton.disabled = true;
 
-            // URLとウィンドウサイズを取得
+            // 認証情報とURLを取得
+            const id = idInput.value;
+            const phrase = phraseInput.value;
             const url = urlInput.value;
             const windowSize = windowSizeSelect.value;
-            if (!url) {
-                resultDiv.innerHTML = '<p style="color:red;">Please enter a valid URL.</p>';
+
+            if (!id || !phrase || !url) {
+                resultDiv.innerHTML = '<p class="error">All fields are required.</p>';
                 loadingDiv.style.display = 'none'; // ローディングアイコンを非表示
                 submitButton.disabled = false;
                 return;
@@ -150,11 +169,13 @@ HTML_TEMPLATE = """
                 const response = await fetch("/", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ url, window_size: windowSize })
+                    body: JSON.stringify({ id, phrase, url, window_size: windowSize })
                 });
 
                 const data = await response.json();
-                if (data.image) {
+                if (data.error) {
+                    resultDiv.innerHTML = `<p class="error">${data.error}</p>`;
+                } else if (data.image) {
                     const endTime = performance.now();
                     const seconds = ((endTime - startTime) / 1000).toFixed(2);
 
@@ -163,11 +184,9 @@ HTML_TEMPLATE = """
                         <img src="data:image/png;base64,${data.image}" alt="Screenshot">
                         <p class="timer">Image loaded in ${seconds} seconds.</p>
                     `;
-                } else {
-                    resultDiv.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
                 }
             } catch (error) {
-                resultDiv.innerHTML = `<p style="color:red;">An unexpected error occurred.</p>`;
+                resultDiv.innerHTML = `<p class="error">An unexpected error occurred.</p>`;
             } finally {
                 loadingDiv.style.display = 'none'; // ローディングアイコンを非表示
                 submitButton.disabled = false;
@@ -182,11 +201,19 @@ HTML_TEMPLATE = """
 def home():
     if request.method == "POST":
         data = request.get_json()
+        id = data.get("id")
+        phrase = data.get("phrase")
         url = data.get("url")
         window_size = data.get("window_size", "1024,768")
+
+        # 認証チェック
+        if id != VALID_ID or phrase != VALID_PHRASE:
+            return jsonify({"error": "Authentication failed. Please check your ID and Phrase."}), 401
+
         if not url:
             return jsonify({"error": "URL is required"}), 400
 
+        # スクリーンショット処理
         chrome_options = Options()
         chrome_options.add_argument("--headless")
         chrome_options.add_argument("--no-sandbox")

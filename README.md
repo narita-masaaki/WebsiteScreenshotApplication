@@ -124,7 +124,7 @@ Docker Issues: Ensure that you are mapping port 8080 correctly and that Docker h
 
     ```bash
     gcloud run deploy my-service \
-        --memory=1024Mi \
+        --memory=4092Mi \
         --image asia-northeast1-docker.pkg.dev/[project-id]/web-screen-shot/my-image:latest \
         --platform managed \
         --region asia-northeast1 \
@@ -135,6 +135,22 @@ Docker Issues: Ensure that you are mapping port 8080 correctly and that Docker h
 Access the public URL and send the URL of the web page to obtain a screen capture of the web page.
 
     <img src="example/ex.WebScreenshot.jpg" width="30%">
+
+7. No access from outside (access only inside the VPC)
+    ```bash
+    gcloud run services update my-service \
+        --region asia-northeast1 \
+        --platform managed \
+        --ingress internal
+    ```
+
+8. External access allowed (from the internet)
+    ```bash
+    gcloud run services update my-service \
+        --region asia-northeast1 \
+        --platform managed \
+        --ingress all
+    ```
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for more details.

@@ -1,8 +1,8 @@
-from flask import Flask, request, send_file, render_template_string, redirect, url_for
+from flask import Flask, request, render_template_string, jsonify
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import time
-import os
+import base64
 
 app = Flask(__name__)
 
@@ -14,18 +14,166 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Screenshot App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        input, select {
+            padding: 10px;
+            font-size: 16px;
+            width: 80%;
+            max-width: 400px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            color: white;
+            background-color: #007BFF;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #cccccc;
+        }
+        #result {
+            text-align: center;
+            margin-top: 20px;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.2);
+        }
+        .timer {
+            margin-top: 10px;
+            color: #555;
+            font-size: 14px;
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .loading span {
+            font-size: 16px;
+            margin-left: 10px;
+            color: #555;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007BFF;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
 </head>
 <body>
     <h1>Website Screenshot</h1>
-    <form action="/" method="post">
+    <form id="screenshot-form" method="post">
         <label for="url">URL to screenshot:</label>
         <input type="text" id="url" name="url" placeholder="https://example.com" required>
-        <button type="submit">Take Screenshot</button>
+        
+        <label for="window-size">Select Window Size:</label>
+        <select id="window-size" name="window-size" required>
+            <option value="1920,1080">1920x1080</option>
+            <option value="1366,768">1366x768</option>
+            <option value="1280,720">1280x720</option>
+            <option value="1024,768" selected>1024x768</option>
+            <option value="800,600">800x600</option>
+        </select>
+        
+        <button type="button" id="submit-button">Take Screenshot</button>
     </form>
-    {% if screenshot_url %}
-        <h2>Screenshot of {{ url }}</h2>
-        <img src="{{ screenshot_url }}" alt="Screenshot" style="max-width: 100%; height: auto;">
-    {% endif %}
+    <div id="result">
+        <!-- スクリーンショット画像や処理時間がここに表示されます -->
+    </div>
+    <div id="loading" class="loading" style="display: none;">
+        <div class="spinner"></div>
+        <span>Processing...</span>
+    </div>
+    <script>
+        document.getElementById('submit-button').addEventListener('click', async () => {
+            const urlInput = document.getElementById('url');
+            const windowSizeSelect = document.getElementById('window-size');
+            const resultDiv = document.getElementById('result');
+            const submitButton = document.getElementById('submit-button');
+            const loadingDiv = document.getElementById('loading');
+            const startTime = performance.now();
+
+            // 前回の結果をクリア
+            resultDiv.innerHTML = '';
+            loadingDiv.style.display = 'flex'; // ローディングアイコンを表示
+            submitButton.disabled = true;
+
+            // URLとウィンドウサイズを取得
+            const url = urlInput.value;
+            const windowSize = windowSizeSelect.value;
+            if (!url) {
+                resultDiv.innerHTML = '<p style="color:red;">Please enter a valid URL.</p>';
+                loadingDiv.style.display = 'none'; // ローディングアイコンを非表示
+                submitButton.disabled = false;
+                return;
+            }
+
+            try {
+                // サーバーにリクエストを送信
+                const response = await fetch("/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url, window_size: windowSize })
+                });
+
+                const data = await response.json();
+                if (data.image) {
+                    const endTime = performance.now();
+                    const seconds = ((endTime - startTime) / 1000).toFixed(2);
+
+                    resultDiv.innerHTML = `
+                        <h2>Screenshot of ${data.url}</h2>
+                        <img src="data:image/png;base64,${data.image}" alt="Screenshot">
+                        <p class="timer">Image loaded in ${seconds} seconds.</p>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color:red;">An unexpected error occurred.</p>`;
+            } finally {
+                loadingDiv.style.display = 'none'; // ローディングアイコンを非表示
+                submitButton.disabled = false;
+            }
+        });
+    </script>
 </body>
 </html>
 """
@@ -33,36 +181,27 @@ HTML_TEMPLATE = """
 @app.route("/", methods=["GET", "POST"])
 def home():
     if request.method == "POST":
-        url = request.form.get("url")
+        data = request.get_json()
+        url = data.get("url")
+        window_size = data.get("window_size", "1024,768")
         if not url:
-            return "URL is required", 400
+            return jsonify({"error": "URL is required"}), 400
 
-        # Chromeのオプション設定
         chrome_options = Options()
         chrome_options.add_argument("--headless")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--window-size=1920,1080")  #ウィンドウサイズを固定
+        chrome_options.add_argument(f"--window-size={window_size}")
 
-        # ChromeのWebDriverを起動
-        screenshot_path = "screenshot.png"
         with webdriver.Chrome(options=chrome_options) as driver:
             driver.get(url)
-            time.sleep(2)  # ページのロード待ち
-            driver.save_screenshot(screenshot_path)
+            time.sleep(2)
+            screenshot = driver.get_screenshot_as_png()
 
-        # スクリーンショットを表示するため、ページをリロードして画像を表示
-        return render_template_string(HTML_TEMPLATE, url=url, screenshot_url=url_for("screenshot_image"))
+        image_base64 = base64.b64encode(screenshot).decode("utf-8")
+        return jsonify({"url": url, "image": image_base64})
 
     return render_template_string(HTML_TEMPLATE)
-
-@app.route("/screenshot_image")
-def screenshot_image():
-    screenshot_path = "screenshot.png"
-    if os.path.exists(screenshot_path):
-        return send_file(screenshot_path, mimetype="image/png")
-    else:
-        return "Screenshot not found", 404
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)

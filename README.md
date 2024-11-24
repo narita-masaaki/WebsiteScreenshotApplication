@@ -83,8 +83,14 @@ Flask: Web framework for creating the application.
 Selenium: Tool for browser automation.
 Google Chrome and ChromeDriver: Required for capturing screenshots in headless mode.
 
+## authentication key
+Define two authentication keys in app.py.
+ID: The ID that allows execution on the server side when the button is pressed.
+PAGE_KEY: The key that allows the initial display of the screen; it is a URL parameter and is used when the page is initially displayed.
+
 ## Example
-Open http://localhost:8080 in your browser.
+Open http://localhost:8080/?key=[PAGE_KEY] in your browser.
+Enter ID(Key to web page display permissions).
 Enter https://example.com (or any URL you want to capture) in the input field.
 Click "Take Screenshot" and wait for the screenshot to load on the page.
 
@@ -125,6 +131,7 @@ Docker Issues: Ensure that you are mapping port 8080 correctly and that Docker h
     ```bash
     gcloud run deploy my-service \
         --memory=4092Mi \
+        --cpu=2 \
         --image asia-northeast1-docker.pkg.dev/[project-id]/web-screen-shot/my-image:latest \
         --platform managed \
         --region asia-northeast1 \

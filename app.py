@@ -3,12 +3,13 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import time
 import base64
-
+import logging
+logging.basicConfig(level=logging.INFO)
 app = Flask(__name__)
 
 # 認証情報
-VALID_ID = "XXXXXXX"
-VALID_PHRASE = "XXXXXXX"
+VALID_ID = "XXXXXXXX"
+PAGE_KEY = "XXXXXXXX"
 
 # HTMLテンプレート
 HTML_TEMPLATE = """
@@ -19,6 +20,7 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Screenshot App</title>
     <style>
+        /* スタイル設定 */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -108,11 +110,11 @@ HTML_TEMPLATE = """
 <body>
     <h1>Website Screenshot</h1>
     <form id="screenshot-form" method="post">
+        <!-- keyをhiddenフィールドとして保持 -->
+        <input type="hidden" id="key" name="key" value="{{ key }}">
+
         <label for="id">ID:</label>
         <input type="text" id="id" name="id" placeholder="Enter your ID" required>
-        
-        <label for="phrase">Phrase:</label>
-        <input type="password" id="phrase" name="phrase" placeholder="Enter your Phrase" required>
         
         <label for="url">URL to screenshot:</label>
         <input type="text" id="url" name="url" placeholder="https://example.com" required>
@@ -128,19 +130,18 @@ HTML_TEMPLATE = """
         
         <button type="button" id="submit-button">Take Screenshot</button>
     </form>
-    <div id="result">
-        <!-- スクリーンショット画像や処理時間がここに表示されます -->
-    </div>
+    <div id="result"></div>
     <div id="loading" class="loading" style="display: none;">
         <div class="spinner"></div>
         <span>Processing...</span>
     </div>
+
     <script>
         document.getElementById('submit-button').addEventListener('click', async () => {
             const idInput = document.getElementById('id');
-            const phraseInput = document.getElementById('phrase');
             const urlInput = document.getElementById('url');
             const windowSizeSelect = document.getElementById('window-size');
+            const keyInput = document.getElementById('key'); // hiddenフィールドからkeyを取得
             const resultDiv = document.getElementById('result');
             const submitButton = document.getElementById('submit-button');
             const loadingDiv = document.getElementById('loading');
@@ -148,28 +149,26 @@ HTML_TEMPLATE = """
 
             // 前回の結果をクリア
             resultDiv.innerHTML = '';
-            loadingDiv.style.display = 'flex'; // ローディングアイコンを表示
+            loadingDiv.style.display = 'flex';
             submitButton.disabled = true;
 
-            // 認証情報とURLを取得
             const id = idInput.value;
-            const phrase = phraseInput.value;
             const url = urlInput.value;
             const windowSize = windowSizeSelect.value;
+            const key = keyInput.value;
 
-            if (!id || !phrase || !url) {
+            if (!id || !url) {
                 resultDiv.innerHTML = '<p class="error">All fields are required.</p>';
-                loadingDiv.style.display = 'none'; // ローディングアイコンを非表示
+                loadingDiv.style.display = 'none';
                 submitButton.disabled = false;
                 return;
             }
 
             try {
-                // サーバーにリクエストを送信
                 const response = await fetch("/", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id, phrase, url, window_size: windowSize })
+                    body: JSON.stringify({ id, url, window_size: windowSize, key })
                 });
 
                 const data = await response.json();
@@ -188,7 +187,7 @@ HTML_TEMPLATE = """
             } catch (error) {
                 resultDiv.innerHTML = `<p class="error">An unexpected error occurred.</p>`;
             } finally {
-                loadingDiv.style.display = 'none'; // ローディングアイコンを非表示
+                loadingDiv.style.display = 'none';
                 submitButton.disabled = false;
             }
         });
@@ -199,21 +198,33 @@ HTML_TEMPLATE = """
 
 @app.route("/", methods=["GET", "POST"])
 def home():
+    logging.debug("Request received")
+    key = request.args.get("key")
+    logging.debug(f"Received key: {key}")
+    
+    if not key and request.method == "GET":
+        logging.debug("Invalid key on initial load")
+        return "Access Denied: Invalid Key", 403
+
     if request.method == "POST":
         data = request.get_json()
+        logging.debug(f"Request JSON: {data}")
+        
+        received_key = data.get("key")  # POSTリクエストからkeyを取得
+        if received_key != PAGE_KEY:
+            logging.debug("Invalid key in POST request")
+            return "Access Denied: Invalid Key", 403
+
         id = data.get("id")
-        phrase = data.get("phrase")
         url = data.get("url")
         window_size = data.get("window_size", "1024,768")
 
-        # 認証チェック
-        if id != VALID_ID or phrase != VALID_PHRASE:
-            return jsonify({"error": "Authentication failed. Please check your ID and Phrase."}), 401
+        if id != VALID_ID:
+            return jsonify({"error": "Authentication failed. Please check your ID."}), 401
 
         if not url:
             return jsonify({"error": "URL is required"}), 400
 
-        # スクリーンショット処理
         chrome_options = Options()
         chrome_options.add_argument("--headless")
         chrome_options.add_argument("--no-sandbox")
@@ -228,7 +239,8 @@ def home():
         image_base64 = base64.b64encode(screenshot).decode("utf-8")
         return jsonify({"url": url, "image": image_base64})
 
-    return render_template_string(HTML_TEMPLATE)
+    # GETリクエスト時にHTMLテンプレートを表示
+    return render_template_string(HTML_TEMPLATE, key=key)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
